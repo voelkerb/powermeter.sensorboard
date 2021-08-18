@@ -13,9 +13,14 @@ See the following example:
 <img src="/docu/figures/PMSensorBoard2.jpg" width="200px" align="right">
 
 &nbsp;  
-
+  
 <br>
+  
+<br/>
 
+test\
+
+  
 
 ---
 
