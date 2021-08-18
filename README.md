@@ -9,12 +9,10 @@ The developed sensor board can be stacked on the [PowerMeter] _PCB_ and the embe
 See the following example:
 
 
-<p align="left">
-<img src="/docu/figures/PMSensorBoard.jpeg" width="200px">
-</p>
-<p align="right">
-<img src="/docu/figures/PMSensorBoard2.jpeg" width="200px">
-</p>
+<img src="/docu/figures/PMSensorBoard.jpg" width="200px" align="left">
+<img src="/docu/figures/PMSensorBoard2.jpg" width="200px" align="right">
+
+---
 
 ## Sensors
 The board incorporates typical environmental sensors:
