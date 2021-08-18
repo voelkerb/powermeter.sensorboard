@@ -11,7 +11,7 @@ See the following example:
 
 <img src="/docu/figures/PMSensorBoard.jpg" width="200px" align="left">
 <img src="/docu/figures/PMSensorBoard2.jpg" width="200px" align="right">
-
+<br/>
 ---
 
 ## Sensors
