@@ -119,6 +119,7 @@ void SensorBoard::powerToLEDs(float power) {
     LED[i][1] = green;
     LED[i][2] = 0;
   }
+  updateLEDs();
 }
 
 bool SensorBoard::update(bool wait) {
