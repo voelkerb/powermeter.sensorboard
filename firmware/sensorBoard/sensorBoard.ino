@@ -21,7 +21,7 @@
 #if defined(ESP8266)
 void ICACHE_RAM_ATTR buttonISR();
 #endif
-enum class BUTTON_PRESS {NONE=0, SINGLE=1, DOUBLE=2, LONG_START=3, LONG_RELEASE=4};
+enum class BUTTON_PRESS {NONE=0, SINGLE=1, DOUBLE=2, LONG_START=3, RELEASE=4};
 void buttonPressed(BUTTON_PRESS press);
 // pins
 #define LED_PIN 5
@@ -92,7 +92,7 @@ void handleButton() {
     BUTTON_PRESS buttonPress = BUTTON_PRESS::NONE;
     // Button was already long pressed and is now released
     if (pressed == -1 and buttonReleased) {
-      buttonPress = BUTTON_PRESS::LONG_RELEASE;
+      buttonPress = BUTTON_PRESS::RELEASE;
       pressed = 0;
     // Button has been pressed
     } else if (pressed > 0) {
@@ -144,7 +144,7 @@ void buttonPressed(BUTTON_PRESS press) {
       #endif
       com.println("!b3");
       break;
-    case BUTTON_PRESS::LONG_RELEASE:
+    case BUTTON_PRESS::RELEASE:
       #ifdef DEBUG
       debugSerial.println("Long press end");
       #endif

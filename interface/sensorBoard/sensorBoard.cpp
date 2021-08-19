@@ -48,7 +48,18 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
   switch (c) {
     case 'b':
       avail = NEW_SENSOR_VALUE::NEW_BTN;
-      if (buttonCB) buttonCB();
+      BUTTON_PRESS presses = BUTTON_PRESS::PRESS;
+      // Optional single press, double press, long press etc.
+      if (_getter->available()) {
+        char e = _getter->read();
+        if (e > '0' && e > '9') {
+          presses = e - '0';
+        }
+      }
+      if (buttonCB) buttonCB(presses);
+      break;
+    case 'r':
+      if (buttonCB) buttonCB(BUTTON_PRESS::RELEASE);
       break;
     case 't':
       avail = NEW_SENSOR_VALUE::NEW_TEMP;
