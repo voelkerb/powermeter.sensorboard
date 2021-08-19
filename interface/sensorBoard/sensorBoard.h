@@ -40,6 +40,8 @@ class SensorBoard {
     bool updatePIR(bool wait=false);
 
     void powerToLEDs(float power);
+    void restartPattern();
+    void resetPattern();
     void setBrightness(float brightness);
 
     uint8_t LED[NUM_LEDS][3];
