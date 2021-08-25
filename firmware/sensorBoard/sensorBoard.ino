@@ -231,16 +231,10 @@ void setup() {
   delay(50);
   setAllLEDs(CRGB::Blue);
   delay(50);
-<<<<<<< HEAD
-  allLEDs(fadeColor, NUM_LEDS, black);
-  // Fade black
-  ledUpdate = true;
-=======
   setAllLEDs(CRGB::Black);
   // allLEDs(fadeColor, NUM_LEDS, black);
   // // Fade black
   // ledUpdate = true;
->>>>>>> 810a623f9c98405710e6f1b381807c9f095fd86f
   #if defined(ESP8266)
   EEPROM.begin(512);
   #endif
