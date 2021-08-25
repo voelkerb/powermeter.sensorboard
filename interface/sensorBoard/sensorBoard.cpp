@@ -10,15 +10,20 @@
 
 #include "SensorBoard.h"
 
-SensorBoard::SensorBoard(Stream * getter):
-  patternUpdateTimes{0, BLINK_STEP, ROUND_STEP, GLOW_STEP, ACTIVE_POWER_UPDATE},
-  updatePattern{&updateStaticPattern, &updateBlinkPattern, &updateRoundPattern, &updateGlowPattern, &updateActivePowerPattern} {
+SensorBoard::SensorBoard(Stream * getter, void (*logFunc)(const char * msg, ...)):
+  updatePattern{NULL, &updateBlinkPattern, &updateRoundPattern, &updateGlowPattern, &updateActivePowerPattern},
+  patternUpdateTimes{0, BLINK_STEP, ROUND_STEP, GLOW_STEP, ACTIVE_POWER_UPDATE}
+{
   _getter = getter;
   buttonCB = NULL;
   PIRCB = NULL;
   lightCB = NULL;
   humCB = NULL;
   tempCB = NULL;
+  fadeUpdate = false;
+  preSet = false;
+
+  _logFunc = logFunc;
 
   // Current pattern
   mainColor = CRGB{255,0,0};
@@ -28,10 +33,9 @@ SensorBoard::SensorBoard(Stream * getter):
   patternState = INIT_PATTERN;
 
   // Old pattern that can be restored
-  oldPatternState = INIT_PATTERN;
   oldMainColor = CRGB{255,0,0};
   oldBGColor = CRGB{0,0,0};
-  oldPattern = LEDPattern::noPattern;
+  oldPattern = LEDPattern::numberOfPatterns;
 
   patternDuration = -1;
   patternStartMillis = millis();
@@ -41,7 +45,7 @@ SensorBoard::SensorBoard(Stream * getter):
 bool SensorBoard::init() {
   // Send ? and wait for answer
   _getter->println("??");
-  bool success = handle(200) == NEW_SENSOR_VALUE::ACTIVE;
+  handle(1000);
   return this->active;
 }
 
@@ -49,7 +53,7 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
   NEW_SENSOR_VALUE avail = NEW_SENSOR_VALUE::NONE;
   if (timeout > 0) {
     long start = millis();
-    while (start - millis() < timeout) {
+    while (millis() - start < timeout) {
       if (_getter->available()) break;
     }
   }
@@ -57,7 +61,7 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
   if (!(_getter->available())) return avail;
   // Allow all data to be sent
   delay(10);
-  // read first cha
+  // read first char
   char c = _getter->read();
   // If it is not a !, return
   if (c != '!') return avail;
@@ -116,7 +120,7 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
 
 void SensorBoard::setAutoSensorMode(bool on) {
   if (on) _getter->println("!a");
-  _getter->println("!o");
+  else _getter->println("!o");
   this->autoMode = on;
 }
 
@@ -176,14 +180,92 @@ void SensorBoard::powerToLEDs(float power) {
   // Power goes from 0 - 3600 max but we say that even 200 Watt is bad and 
   // keep a linear mapping
   else if (normalizes > MAX_WATT) normalizes = MAX_WATT;
-
+  
   uint8_t red = map(normalizes, 0, MAX_WATT, 0, 255);
   uint8_t green = 255 - red;
+  if (normalizes < IDLE_WATT) {
+    red = 0; 
+    green = 0;
+  }
   CRGB c = CRGB{red, green, 0};
   for (int i = 0; i < NUM_LEDS; i++) {
     LED[i] = c;
   }
+  // updateLEDs();
+}
+
+void SensorBoard::setRainbow(long duration) {
+  LED[0] = COLOR_RED;
+  LED[1] = COLOR_GREEN;
+  LED[2] = COLOR_BLUE;
+  // Make sure timing and saving is done
+  newLEDPattern(LEDPattern::staticPattern, duration, COLOR_BLACK, COLOR_BLACK);
   updateLEDs();
+}
+
+void SensorBoard::setDots(int dots, CRGB color, CRGB bgColor, long duration) {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    if (i < dots) LED[i] = color;
+    else LED[i] = bgColor;
+  }
+  // Make sure timing and saving is done
+  newLEDPattern(LEDPattern::staticPattern, duration, color, bgColor);
+  updateLEDs();
+}
+
+void SensorBoard::setDots(int dots, CRGB color, long duration) {
+  setDots(dots, color, COLOR_BLACK, duration);
+}
+
+void SensorBoard::setIndividualColors(CRGB *colors, size_t n, bool fade, long duration) {
+  for (int i=0; i<NUM_LEDS; i++) {
+    if (i >= n) break;
+    LED[i] = colors[i];
+  }
+  fadeUpdate = fade;
+  // Make sure timing and saving is done
+  newLEDPattern(LEDPattern::staticPattern, duration, COLOR_BLACK, COLOR_BLACK);
+  updateLEDs();
+}
+
+void SensorBoard::setColor(CRGB color, bool fade) {
+  setColor(color, -1, fade);
+}
+
+void SensorBoard::setColor(CRGB color, int duration) {
+  setColor(color, (long)duration, false);
+}
+
+void SensorBoard::setColor(CRGB color, long duration) {
+  setColor(color, duration, false);
+}
+
+void SensorBoard::setColor(CRGB color, long duration, bool fade) {
+  fadeUpdate = fade;
+  allLEDs(color);
+  // Make sure timing and saving is done
+  newLEDPattern(LEDPattern::staticPattern, duration, color, COLOR_BLACK);
+  updateLEDs();
+}
+
+void SensorBoard::displayPowerColor(long duration) {
+  newLEDPattern(LEDPattern::activePowerPattern, duration, COLOR_BLACK, COLOR_BLACK);
+}
+
+void SensorBoard::glow(CRGB color, CRGB bgColor, long duration) {
+  newLEDPattern(LEDPattern::glowPattern, duration, color, bgColor);
+}
+
+void SensorBoard::glow(CRGB color, long duration) {
+  newLEDPattern(LEDPattern::glowPattern, duration, color, COLOR_BLACK);
+}
+
+void SensorBoard::blink(CRGB color, CRGB bgColor, long duration) {
+  newLEDPattern(LEDPattern::blinkPattern, duration, color, bgColor);
+}
+
+void SensorBoard::blink(CRGB color, long duration) {
+  newLEDPattern(LEDPattern::blinkPattern, duration, color, COLOR_BLACK);
 }
 
 void SensorBoard::allLEDs(CRGB c) {
@@ -196,8 +278,10 @@ void SensorBoard::setAllLEDs(CRGB c) {
 }
 
 void SensorBoard::newLEDPattern(LEDPattern pattern, long duration, CRGB theFGColor, CRGB theBGColor) {
-  // Save old pattern
-  saveOldPattern();
+  // Save old/current pattern if current duration is infty
+  if (duration != -1) {
+    saveOldPattern();
+  }
   // Set new pattern variables
   patternDuration = duration;
   currentPattern = pattern;
@@ -223,23 +307,25 @@ void SensorBoard::restoreOldPattern() {
   currentPattern = oldPattern;
   // This is not nice but may be not necessary
   patternState = INIT_PATTERN;
+  // Static pattern needs dedicated update
+  if (oldPattern == LEDPattern::staticPattern) {
+    setAllLEDs(mainColor);
+  }
   patternTimer = millis();
 }
 
 void SensorBoard::updateLEDs() {
-  _getter->print('!L');
+  _getter->print("!L");
   for (int l = 0; l < NUM_LEDS; l++) {
     for (int c = 0; c < 3; c++) _getter->write(LED[l].raw[c]);
+  }
+  if (fadeUpdate) {
+    fadeUpdate = false;
+    _getter->print("f");
   }
   _getter->println();
 }
 
-
-void SensorBoard::updateStaticPattern(SensorBoard* obj) {
-  obj->allLEDs(obj->mainColor);
-  // Indicate that init has been performed (and static color has been set)
-  obj->patternState++;
-}
 
 void SensorBoard::updateGlowPattern(SensorBoard* obj) {
   // on -1 init the glow pattern with black LEDs
@@ -248,9 +334,15 @@ void SensorBoard::updateGlowPattern(SensorBoard* obj) {
     obj->patternState = GLOW_UP;
   }
   // Glow to main color here
-  else if (obj->patternState == GLOW_UP) obj->fadeTowardColor(obj->mainColor, 10);
+  else if (obj->patternState == GLOW_UP) {
+    obj->fadeUpdate = true;
+    obj->fadeTowardColor(obj->mainColor, 8);
+  }
   // Glow to bg color here
-  else if (obj->patternState == GLOW_DOWN) obj->fadeTowardColor(obj->bgColor, 10);
+  else if (obj->patternState == GLOW_DOWN) {
+    obj->fadeUpdate = true;
+    obj->fadeTowardColor(obj->bgColor, 8);
+  }
   // Check if mainColor is reached then glow back two background color
   if (obj->LED[0] == obj->mainColor) obj->patternState = GLOW_DOWN;
   else if (obj->LED[0] == obj->bgColor) obj->patternState = GLOW_UP;
@@ -277,7 +369,9 @@ void SensorBoard::updateActivePowerPattern(SensorBoard* obj) {
   if (obj->activePowerGetter) {
     float power = obj->activePowerGetter();
     obj->powerToLEDs(power);
+    obj->fadeUpdate = true;
   }
+  obj->patternState++;
 }
 
 void SensorBoard::updateRoundPattern(SensorBoard* obj) {
@@ -299,9 +393,16 @@ void SensorBoard::updateLEDPattern() {
       restoreOldPattern();
       patternStartMillis = millis();
       patternDuration = -1;
+      if (_logFunc) {
+        _logFunc("Reset old pattern: %i, state: %i", (int)currentPattern, patternState);
+      }
+    
     }
   }
+  // precent overflow
   if (currentPattern >= LEDPattern::numberOfPatterns) return;
+  // Static pattern already updated
+  if (currentPattern == LEDPattern::staticPattern) return;
   // if pattern with no update time are specified only inititalize
   if (patternUpdateTimes[(int)currentPattern] == 0 && patternState != INIT_PATTERN) return;
   // Return if update time not reached or not inited yet
@@ -309,6 +410,7 @@ void SensorBoard::updateLEDPattern() {
   // Handle the current pattern
   updatePattern[(int)currentPattern](this);
   // Update the timer and the leds
+  if (_logFunc) _logFunc("Pattern updated");
   patternTimer = millis();
   updateLEDs();
 }

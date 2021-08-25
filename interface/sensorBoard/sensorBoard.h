@@ -25,13 +25,12 @@ enum class NEW_SENSOR_VALUE {NONE = 0, NEW_BTN = 1, NEW_TEMP = 2, NEW_HUM = 3, N
 enum class BUTTON_PRESS {NONE=0, SINGLE=1, DOUBLE=2, LONG_START=3, RELEASE=4, PRESS=5};
 
 enum class LEDPattern {
-  staticPattern,
-  blinkPattern,
-  roundPattern,
-  glowPattern,
-  activePowerPattern,
-  numberOfPatterns,
-  noPattern
+  staticPattern = 0,
+  blinkPattern = 1,
+  roundPattern = 2,
+  glowPattern = 3,
+  activePowerPattern = 4,
+  numberOfPatterns = 5
 };
 
 // CRGB Struct
@@ -62,6 +61,7 @@ struct CRGB {
 #define COLOR_GREEN CRGB{0,255,0}
 #define COLOR_BLUE CRGB{0,0,255}
 #define COLOR_ORANGE CRGB{255,255,0}
+#define COLOR_PINK CRGB{255,0,255}
 
 /// Test two CRGB for equality
 inline __attribute__((always_inline)) bool operator== (const CRGB& lhs, const CRGB& rhs) { return (lhs.r == rhs.r) && (lhs.g == rhs.g) && (lhs.b == rhs.b); }
@@ -70,9 +70,10 @@ inline __attribute__((always_inline)) bool operator!= (const CRGB& lhs, const CR
 class SensorBoard {
   #define SENSOR_WAIT_TIME 1000
   #define MAX_WATT 500
+  #define IDLE_WATT 2
   
   public:
-    SensorBoard(Stream * getter);
+    SensorBoard(Stream * getter, void (*logFunc)(const char * msg, ...)=NULL);
     bool init();
 
     // Update LEDs and Serial communication
@@ -87,9 +88,23 @@ class SensorBoard {
     // Handle serial connection
     enum NEW_SENSOR_VALUE handle(int timeout=-1);
 
+    void setBrightness(float brightness);
     // Set new LED pattern
     void newLEDPattern(LEDPattern pattern, long duration, CRGB theFGColor, CRGB theBGColor);
-    void setBrightness(float brightness);
+    // Easy wrappers
+    void setRainbow(long duration=-1);
+    void setDots(int dots, CRGB color, CRGB bgColor=COLOR_BLACK, long duration=-1);
+    void setDots(int dots, CRGB color, long duration);
+    void displayPowerColor(long duration=-1);
+    void setIndividualColors(CRGB *colors, size_t n, bool fade=false, long duration=-1);
+    void setColor(CRGB color, bool fade);
+    void setColor(CRGB color, int duration);
+    void setColor(CRGB color, long duration);
+    void setColor(CRGB color, long duration=-1, bool fade=false);
+    void glow(CRGB color, CRGB bgColor=COLOR_BLACK, long duration=-1);
+    void glow(CRGB color, long duration);
+    void blink(CRGB color, CRGB bgColor=COLOR_BLACK, long duration=-1);
+    void blink(CRGB color, long duration);
 
     float humidity;
     float temperature;
@@ -107,6 +122,7 @@ class SensorBoard {
     float (*activePowerGetter)(void);
 
   private:
+
     // LED array
     CRGB LED[NUM_LEDS];
     // Setting all LEDs to same color
@@ -121,11 +137,13 @@ class SensorBoard {
     #define GLOW_DOWN 1
     #define BLINK_ONE 0
     #define BLINK_TWO 1
+    #define ROUND_ONE 0
+    #define ROUND_TWO 1
 
     // Speeds for pattern updates in ms
     #define GLOW_STEP 50
     #define BLINK_STEP 500
-    #define ROUND_STEP 50
+    #define ROUND_STEP 200
     #define UP_DOWN_STEP 300
     #define ACTIVE_POWER_UPDATE 5000
 
@@ -165,16 +183,20 @@ class SensorBoard {
     CRGB bgColor;
     LEDPattern currentPattern;
 
-    int oldPatternState;
     CRGB oldMainColor;
     CRGB oldBGColor;
     LEDPattern oldPattern;
 
+    bool fadeUpdate;
+    bool preSet;
     long patternTimer;
 
     template < typename TOut >
     TOut parse();
     Stream * _getter;
+
+
+    void (*_logFunc)(const char * msg, ...);
 };
 
 #endif
