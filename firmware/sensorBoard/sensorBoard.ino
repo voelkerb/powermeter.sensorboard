@@ -18,6 +18,8 @@
 // Or you get Single press, double press, long press etc.
 
 
+// SoftwareSerial softSerial(10,11);
+
 #if defined(ESP8266)
 void ICACHE_RAM_ATTR buttonISR();
 #endif
@@ -39,8 +41,8 @@ void buttonPressed(BUTTON_PRESS press);
 // Serial stuff
 #define SERIAL_SPEED 38400
 // #define DEBUG
-#define USE_SENSORS
-#define debugSerial Serial
+// #define USE_SENSORS
+// #define debugSerial softSerial
 #define com Serial
 
 // LED
@@ -208,13 +210,13 @@ void buttonISR() {
 #endif
 
 void setup() {
+  // Init serial
+  com.begin(SERIAL_SPEED);
   #ifdef DEBUG
   #if debugSerial != com
   debugSerial.begin(SERIAL_SPEED);
   #endif
   #endif
-  // Init serial
-  com.begin(SERIAL_SPEED);
 
   #ifdef DEBUG
   debugSerial.println("Setup init");
@@ -229,9 +231,16 @@ void setup() {
   delay(50);
   setAllLEDs(CRGB::Blue);
   delay(50);
+<<<<<<< HEAD
   allLEDs(fadeColor, NUM_LEDS, black);
   // Fade black
   ledUpdate = true;
+=======
+  setAllLEDs(CRGB::Black);
+  // allLEDs(fadeColor, NUM_LEDS, black);
+  // // Fade black
+  // ledUpdate = true;
+>>>>>>> 810a623f9c98405710e6f1b381807c9f095fd86f
   #if defined(ESP8266)
   EEPROM.begin(512);
   #endif
@@ -262,6 +271,7 @@ void setup() {
   #ifdef DEBUG
   debugSerial.println("Setup done!");
   #endif
+  while (com.available()) com.read();
 }
 
 
@@ -270,6 +280,12 @@ void loop() {
   #ifdef STATEFULL_PRESS
   handleButton();
   #endif
+  // recieve command from powermeter
+  if (com.available()) {
+    // No sensor updates on flood requests
+    handleEvent();
+    return;
+  }
   #ifdef USE_SENSORS
   if (autoSend) {
     sendPIR(true);
@@ -294,8 +310,6 @@ void loop() {
     // Becomes slightly irresponsive on LED updates
     FastLED.delay(fadeDelay); 
   }
-  // recieve command from powermeter
-  if (com.available()) handleEvent();
 }
 
 
@@ -305,7 +319,7 @@ void handleEvent() {
   // If it is not a !, return
   if (c != '?' and c != '!') return;
   // Let all data be sent by the sink
-  delay(10);
+  delay(2);
   char d = com.read();
   switch (d) {
     case '?':
@@ -365,7 +379,13 @@ void handleEvent() {
         uint8_t b = com.read();
         fadeColor[i] = CRGB(r,g,b);
       }
-      ledUpdate = true;
+      // Will only get \n
+      if (com.available() and com.read() == 'f') {
+        ledUpdate = true;
+      } else {
+        for (int i = 0; i < NUM_LEDS; i++) leds[i] = fadeColor[i];
+        FastLED.show();
+      }
       #ifdef DEBUG
       debugSerial.print("Set LED to: ");
       for (int i = 0; i < NUM_LEDS; i++) {
@@ -386,6 +406,10 @@ void handleEvent() {
       #endif
       break;
   }
+  // Wait for remaining data
+  if (!com.available()) delay(1);
+  // Wait for \n
+  while (com.available() and com.read() != '\n') {};
 }
 
 #ifdef USE_SENSORS
