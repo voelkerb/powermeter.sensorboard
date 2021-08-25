@@ -74,7 +74,7 @@ long humUpdate = millis();
 #define TEMP_UPDATE_INTV 5000
 #define HUM_UPDATE_INTV TEMP_UPDATE_INTV // as it is from the same sensor
 
-uint8_t fadeDelay = 10;
+uint8_t fadeDelay = 5;
 
 #define DOUBLE_PRESS_DELAY 900
 #define LONG_PRESS_DELAY 5000
@@ -224,11 +224,11 @@ void setup() {
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS); 
   // Tests LEDs
   setAllLEDs(CRGB::Red);
-  delay(200);
+  delay(50);
   setAllLEDs(CRGB::Green);
-  delay(200);
+  delay(50);
   setAllLEDs(CRGB::Blue);
-  delay(200);
+  delay(50);
   allLEDs(fadeColor, NUM_LEDS, black);
   // Fade black
   ledUpdate = true;
@@ -450,7 +450,7 @@ void setAllLEDs(CRGB color) {
 
 bool fadeit() {
   for( uint16_t i = 0; i < NUM_LEDS; i++) {
-    fadeTowardColor(leds[i], fadeColor[i], 1);
+    fadeTowardColor(leds[i], fadeColor[i], 10);
   }
   // Check if now done
   bool allDone = true;
