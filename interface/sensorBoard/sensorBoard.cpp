@@ -96,7 +96,7 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
       break;
     case 'l':
       avail = NEW_SENSOR_VALUE::NEW_LIGHT;
-      this->light = parse<uint32_t>();
+      this->light = parse<int32_t>();
       if (lightCB) lightCB(this->light);
       break;
     case 'p':
@@ -278,8 +278,8 @@ void SensorBoard::setAllLEDs(CRGB c) {
 }
 
 void SensorBoard::newLEDPattern(LEDPattern pattern, long duration, CRGB theFGColor, CRGB theBGColor) {
-  // Save old/current pattern if current duration is infty
-  if (duration != -1) {
+  // Save old/current pattern if new duration is not infty and current duration is infty
+  if (patternDuration == -1 and duration != -1) {
     saveOldPattern();
   }
   // Set new pattern variables
