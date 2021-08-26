@@ -41,8 +41,8 @@ void buttonPressed(BUTTON_PRESS press);
 // Serial stuff
 #define SERIAL_SPEED 38400
 // #define DEBUG
-// #define USE_SENSORS
-// #define debugSerial softSerial
+#define USE_SENSORS
+#define debugSerial Serial
 #define com Serial
 
 // LED
@@ -63,7 +63,7 @@ bool autoSend = false;
 // old values for sensors
 float temp = -1;
 float hum = -1;
-int light = -1;
+int32_t light = -1;
 uint8_t pir = 255;
 
 uint8_t brightness = 255;
@@ -226,11 +226,11 @@ void setup() {
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS); 
   // Tests LEDs
   setAllLEDs(CRGB::Red);
-  delay(50);
+  delay(100);
   setAllLEDs(CRGB::Green);
-  delay(50);
+  delay(100);
   setAllLEDs(CRGB::Blue);
-  delay(50);
+  delay(100);
   setAllLEDs(CRGB::Black);
   // allLEDs(fadeColor, NUM_LEDS, black);
   // // Fade black
@@ -255,17 +255,34 @@ void setup() {
   #ifdef DEBUG
   debugSerial.println("DHT init");
   #endif
+  bool success = true;
   dht.begin();
+  float te = dht.readTemperature();
+  if (te >= 0 && te < 100) success &= true;
+  else success = false;
   #ifdef DEBUG
   debugSerial.println("TSL2561 init");
   #endif
   TSL2561.init();
+  int val = TSL2561.readVisibleLux();
+  if (val >= 0 && val < 10000) success &= true;
+  else success = false;
+  
   #endif
-
+  
+  while (com.available()) com.read();
+  if (success) {
+    setAllLEDs(CRGB::Green);
+  } else {
+    setAllLEDs(CRGB::Red);
+  }
+  delay(50);
+  allLEDs(fadeColor, NUM_LEDS, black);
+  // // Fade black
+  ledUpdate = true;
   #ifdef DEBUG
   debugSerial.println("Setup done!");
   #endif
-  while (com.available()) com.read();
 }
 
 
@@ -353,15 +370,31 @@ void handleEvent() {
     #ifdef USE_SENSORS
     case 'p':
       sendPIR(false);
+      #ifdef DEBUG
+      debugSerial.print("PIR send: ");
+      debugSerial.println(pir);
+      #endif
       break;
     case 't':
       sendTemp(false);
+      #ifdef DEBUG
+      debugSerial.print("Temp send: ");
+      debugSerial.println(temp);
+      #endif
       break;
     case 'h':
       sendHum(false);
+      #ifdef DEBUG
+      debugSerial.print("HUM send: ");
+      debugSerial.println(hum);
+      #endif
       break;
     case 'l':
-      sendHum(false);
+      sendLight(false);
+      #ifdef DEBUG
+      debugSerial.print("Light send: ");
+      debugSerial.println(light);
+      #endif
       break;
     #endif
     case 'L':
