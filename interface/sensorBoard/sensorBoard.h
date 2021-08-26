@@ -144,7 +144,6 @@ class SensorBoard {
     #define GLOW_STEP 50
     #define BLINK_STEP 500
     #define ROUND_STEP 200
-    #define UP_DOWN_STEP 300
     #define ACTIVE_POWER_UPDATE 5000
 
     // Array holding helper functions
