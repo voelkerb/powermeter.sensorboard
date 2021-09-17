@@ -33,6 +33,15 @@ enum class LEDPattern {
   numberOfPatterns = 5
 };
 
+struct __attribute__((__packed__)) SensorBoardConfiguration {
+  float tempOffset = 0.0; 
+  float humOffset = 0.0; 
+  float brightness = 1.0;
+  float lightCal = 1.0;
+  float minLEDWatt = 2.0;
+  float maxLEDWatt = 200.0;
+};
+
 // CRGB Struct
 struct CRGB {
   union {
@@ -69,11 +78,14 @@ inline __attribute__((always_inline)) bool operator!= (const CRGB& lhs, const CR
 
 class SensorBoard {
   #define SENSOR_WAIT_TIME 1000
-  #define MAX_WATT 500
-  #define IDLE_WATT 2
   
   public:
-    SensorBoard(Stream * getter, void (*logFunc)(const char * msg, ...)=NULL);
+    SensorBoard(
+        Stream * getter, 
+        float tempHysteresis, float humHysteresis, int lightHysteresis, float minLEDWatt, float maxLEDWatt,
+        // void (*loadStoreFunc)(bool store, uint8_t *data, size_t size)=NULL,
+        void (*logFunc)(const char * msg, ...)=NULL
+      );
     bool init();
 
     // Update LEDs and Serial communication
@@ -112,7 +124,6 @@ class SensorBoard {
     int light;
     bool active;
     bool autoMode;
-    float brightness;
 
     void (*buttonCB)(BUTTON_PRESS);
     void (*tempCB)(float);
@@ -121,8 +132,13 @@ class SensorBoard {
     void (*PIRCB)(bool);
     float (*activePowerGetter)(void);
 
+    SensorBoardConfiguration config;
+
   private:
 
+    float _tempHysteresis;
+    float _humHysteresis;
+    int _lightHysteresis;
     // LED array
     CRGB LED[NUM_LEDS];
     // Setting all LEDs to same color
@@ -193,7 +209,6 @@ class SensorBoard {
     template < typename TOut >
     TOut parse();
     Stream * _getter;
-
 
     void (*_logFunc)(const char * msg, ...);
 };

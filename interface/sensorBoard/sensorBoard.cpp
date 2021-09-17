@@ -10,7 +10,11 @@
 
 #include "SensorBoard.h"
 
-SensorBoard::SensorBoard(Stream * getter, void (*logFunc)(const char * msg, ...)):
+SensorBoard::SensorBoard(Stream * getter, 
+        float tempHysteresis, float humHysteresis, int lightHysteresis, float minLEDWatt, float maxLEDWatt,
+        // void (*loadStoreFunc)(bool store, uint8_t *data, size_t size), 
+        void (*logFunc)(const char * msg, ...)
+      ):
   updatePattern{NULL, &updateBlinkPattern, &updateRoundPattern, &updateGlowPattern, &updateActivePowerPattern},
   patternUpdateTimes{0, BLINK_STEP, ROUND_STEP, GLOW_STEP, ACTIVE_POWER_UPDATE}
 {
@@ -23,7 +27,14 @@ SensorBoard::SensorBoard(Stream * getter, void (*logFunc)(const char * msg, ...)
   fadeUpdate = false;
   preSet = false;
 
+  _tempHysteresis = tempHysteresis;
+  _humHysteresis = humHysteresis;
+  _lightHysteresis = lightHysteresis;
+  config.minLEDWatt = minLEDWatt;
+  config.maxLEDWatt = maxLEDWatt;
+
   _logFunc = logFunc;
+  // _loadStoreFunc = loadStoreFunc;
 
   // Current pattern
   mainColor = CRGB{255,0,0};
@@ -45,6 +56,7 @@ SensorBoard::SensorBoard(Stream * getter, void (*logFunc)(const char * msg, ...)
 bool SensorBoard::init() {
   // Send ? and wait for answer
   _getter->println("??");
+  // if (_loadStoreFunc) _loadStoreFunc(false, (uint8_t*)&config, sizeof(config));
   handle(1000);
   return this->active;
 }
@@ -81,33 +93,53 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
       if (buttonCB) buttonCB(presses);
       break;
     }
-    case 'r':
+    case 'r': {
       if (buttonCB) buttonCB(BUTTON_PRESS::RELEASE);
       break;
-    case 't':
-      avail = NEW_SENSOR_VALUE::NEW_TEMP;
-      this->temperature = parse<float>();
-      if (tempCB) tempCB(this->temperature);
+    }
+    case 't': {
+      float temp = parse<float>()+config.tempOffset;
+      if (abs(temp-this->temperature) > _tempHysteresis) {
+        avail = NEW_SENSOR_VALUE::NEW_TEMP;
+        this->temperature = temp;
+        if (tempCB) tempCB(this->temperature);
+      }
       break;
-    case 'h':
-      avail = NEW_SENSOR_VALUE::NEW_HUM;
-      this->humidity = parse<float>();
-      if (humCB) humCB(this->humidity);
+    }
+    case 'h': {
+      float hum = parse<float>()+config.humOffset;
+      if (this->humidity > 100) this->humidity = 100;
+      else if (this->humidity < 0) this->humidity = 0;
+      if (abs(hum-this->humidity) > _humHysteresis) {
+        avail = NEW_SENSOR_VALUE::NEW_HUM;
+        this->humidity = hum;
+        if (humCB) humCB(this->humidity);
+      }
       break;
-    case 'l':
-      avail = NEW_SENSOR_VALUE::NEW_LIGHT;
-      this->light = parse<int32_t>();
-      if (lightCB) lightCB(this->light);
+    }
+    case 'l': {
+      int lig = (int)((float)(parse<int32_t>())*config.lightCal);
+      if (abs(lig-this->light) > _lightHysteresis) {
+        avail = NEW_SENSOR_VALUE::NEW_LIGHT;
+        this->light = lig;
+        if (lightCB) lightCB(this->light);
+      }
       break;
-    case 'p':
-      avail = NEW_SENSOR_VALUE::NEW_PIR;
-      this->PIR = (uint8_t)_getter->read();
-      if (PIRCB) PIRCB(this->PIR);
+    }
+    case 'p': {
+      bool pir = (uint8_t)_getter->read();
+      if (pir != this->PIR) {
+        avail = NEW_SENSOR_VALUE::NEW_PIR;
+        this->PIR = pir;
+        if (PIRCB) PIRCB(this->PIR);
+      }
       break;
-    case '!':
+    }
+    case '!': {
       avail = NEW_SENSOR_VALUE::ACTIVE;
       this->active = true;
       break;
+    }
     // Invalid data
     default:
       avail = NEW_SENSOR_VALUE::UNKNOWN;
@@ -172,6 +204,7 @@ void SensorBoard::setBrightness(float brightness) {
   _getter->print("!b");
   _getter->write((uint8_t)bright);
   _getter->println();
+  config.brightness = brightness;
 }
 
 void SensorBoard::powerToLEDs(float power) {
@@ -179,11 +212,11 @@ void SensorBoard::powerToLEDs(float power) {
   if (normalizes < 0) normalizes = 0;
   // Power goes from 0 - 3600 max but we say that even 200 Watt is bad and 
   // keep a linear mapping
-  else if (normalizes > MAX_WATT) normalizes = MAX_WATT;
+  else if (normalizes > config.maxLEDWatt) normalizes = config.maxLEDWatt;
   
-  uint8_t red = map(normalizes, 0, MAX_WATT, 0, 255);
+  uint8_t red = map(normalizes, 0, config.maxLEDWatt, 0, 255);
   uint8_t green = 255 - red;
-  if (normalizes < IDLE_WATT) {
+  if (normalizes < config.minLEDWatt) {
     red = 0; 
     green = 0;
   }
