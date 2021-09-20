@@ -228,9 +228,9 @@ void SensorBoard::powerToLEDs(float power) {
 }
 
 void SensorBoard::setRainbow(long duration) {
-  LED[0] = COLOR_RED;
-  LED[1] = COLOR_GREEN;
-  LED[2] = COLOR_BLUE;
+  LED[2] = COLOR_RED;
+  LED[0] = COLOR_GREEN;
+  LED[1] = COLOR_BLUE;
   // Make sure timing and saving is done
   newLEDPattern(LEDPattern::staticPattern, duration, COLOR_BLACK, COLOR_BLACK);
   updateLEDs();
@@ -238,8 +238,29 @@ void SensorBoard::setRainbow(long duration) {
 
 void SensorBoard::setDots(int dots, CRGB color, CRGB bgColor, long duration) {
   for (int i = 0; i < NUM_LEDS; i++) {
-    if (i < dots) LED[i] = color;
-    else LED[i] = bgColor;
+    // its that, because the Layout is
+    //                                               TOP
+    //                                  ______________________________
+    //                                 |            ______________   |
+    //                                 |    BTN    |LED2 LED0 LED1|  |
+    //                                 |           |______________|  |
+    //                                 |               ________      |
+    //                                 |    PIR       |        |     |
+    //                                 |              |  DHT   |     |
+    //                                 |   Light      |________|     |
+    //                       LEFT      |                             |     RIGHT
+    //                                 |                             |
+    //                                 |                             |
+    //                                 |            _____            |
+    //                                 |                             |
+    //                                 |       ( O    0    O )       |
+    //                                 |                             |
+    //                                 |            -----            |
+    //                                 |                             |
+    //                                 |_____________________________|
+    //                                             BOTTOM
+    if (i < dots) LED[(i+2)%NUM_LEDS] = color;
+    else LED[(i+2)%NUM_LEDS] = bgColor;
   }
   // Make sure timing and saving is done
   newLEDPattern(LEDPattern::staticPattern, duration, color, bgColor);
