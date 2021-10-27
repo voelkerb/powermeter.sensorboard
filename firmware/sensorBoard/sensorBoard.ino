@@ -41,7 +41,9 @@ void buttonPressed(BUTTON_PRESS press);
 // Serial stuff
 #define SERIAL_SPEED 38400
 // #define DEBUG
+// #define USE_ASCI_INT
 #define USE_SENSORS
+
 #define debugSerial Serial
 #define com Serial
 
@@ -283,6 +285,9 @@ void setup() {
   #ifdef DEBUG
   debugSerial.println("Setup done!");
   #endif
+
+  delay(50);
+  allLEDs(fadeColor, NUM_LEDS, black); 
 }
 
 
@@ -337,7 +342,11 @@ void handleEvent() {
       com.println("!!");
       break;
     case 'b':
+      #ifdef USE_ASCI_INT
+      brightness = com.parseInt();
+      #else
       brightness = com.read();
+      #endif
       EEPROM.put(BRIGHTNESS_ADDRESS, brightness);
       FastLED.setBrightness(brightness);
       FastLED.show();
@@ -400,12 +409,21 @@ void handleEvent() {
     case 'L':
       delay(10);
       if (com.available() < 3*NUM_LEDS) return;
+      #ifdef USE_ASCI_INT
+      for (int i = 0; i < NUM_LEDS; i++) {
+        uint8_t r = com.parseInt();
+        uint8_t g = com.parseInt();
+        uint8_t b = com.parseInt();
+        fadeColor[i] = CRGB(r,g,b);
+      }
+      #else
       for (int i = 0; i < NUM_LEDS; i++) {
         uint8_t r = com.read();
         uint8_t g = com.read();
         uint8_t b = com.read();
         fadeColor[i] = CRGB(r,g,b);
       }
+      #endif
       // Will only get \n
       if (com.available() and com.read() == 'f') {
         ledUpdate = true;
