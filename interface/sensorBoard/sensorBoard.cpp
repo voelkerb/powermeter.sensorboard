@@ -52,8 +52,21 @@ SensorBoard::SensorBoard(Stream * getter,
   patternStartMillis = millis();
 }
 
+static bool valueValid(float value, float min, float max) {
+  if (isnan(value) || value < min || value > max) return false;
+  return true;
+}
 
 bool SensorBoard::init() {
+  // Note that config must be set prior to calling this function
+  // check if values make sense
+  if (!valueValid(this->config.brightness,    0,   100.0)) this->config.brightness = 50.0;
+  if (!valueValid(this->config.humOffset,  -100,   100.0)) this->config.humOffset  = 0.0;
+  if (!valueValid(this->config.lightCal,      0,   100.0)) this->config.lightCal   = 1.0;
+  if (!valueValid(this->config.maxLEDWatt,    0, 10000.0)) this->config.maxLEDWatt = 200.0;
+  if (!valueValid(this->config.minLEDWatt,    0, 10000.0)) this->config.minLEDWatt = 2.0;
+  if (!valueValid(this->config.tempOffset,  -20,   200.0)) this->config.tempOffset = 0.0;
+
   // Send ? and wait for answer
   _getter->println("??");
   // if (_loadStoreFunc) _loadStoreFunc(false, (uint8_t*)&config, sizeof(config));
@@ -79,6 +92,8 @@ enum NEW_SENSOR_VALUE SensorBoard::handle(int timeout) {
   if (c != '!') return avail;
   // Parse data
   c = _getter->read();
+  if (_logFunc) _logFunc("Sensor cmd %c", c);
+
   switch (c) {
     case 'b': {
       avail = NEW_SENSOR_VALUE::NEW_BTN;
@@ -501,7 +516,7 @@ TOut SensorBoard::parse() {
     for (int i = 0; i < sizeof(TOut); i++) {
       bytes[i] = _getter->read();
     }
-    memcpy(&value, &bytes, sizeof(value));
+    memcpy(&value, &bytes[0], sizeof(value));
   }
   return value; 
 }
